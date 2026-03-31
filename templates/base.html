@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}DisasterPrep{% endblock %} – Disaster Management Training</title>
+  <meta name="description" content="DisasterPrep – Learn disaster preparedness, complete virtual drills, and earn badges."/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛑️</text></svg>"/>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="app-layout">
+  <!-- Mobile overlay -->
+  <div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="logo-emoji">⛑️</span>
+        <span>DisasterPrep</span>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+      <div class="sidebar-user-info">
+        <div class="user-name" id="sidebarName">Loading…</div>
+        <div class="user-role" id="sidebarRole">student</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Main</div>
+      <a href="/dashboard" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+      <a href="/modules" class="nav-link {% if 'module' in request.endpoint %}active{% endif %}">
+        <span class="nav-icon">📚</span> Learning Modules
+      </a>
+      <a href="/drill" class="nav-link {% if request.endpoint == 'drill' %}active{% endif %}">
+        <span class="nav-icon">🎯</span> Virtual Drills
+        <span class="nav-badge">HOT</span>
+      </a>
+
+      <div class="nav-label">Community</div>
+      <a href="/leaderboard" class="nav-link {% if request.endpoint == 'leaderboard_page' %}active{% endif %}">
+        <span class="nav-icon">🏆</span> Leaderboard
+      </a>
+      <a href="/alerts" class="nav-link {% if request.endpoint == 'alerts_page' %}active{% endif %}">
+        <span class="nav-icon">🔔</span> Alerts
+      </a>
+
+      <div class="nav-label">Resources</div>
+      <a href="/chatbot" class="nav-link {% if request.endpoint == 'chatbot' %}active{% endif %}">
+        <span class="nav-icon">🤖</span> AI Assistant
+      </a>
+      <a href="/contacts" class="nav-link {% if request.endpoint == 'contacts' %}active{% endif %}">
+        <span class="nav-icon">📞</span> Emergency Contacts
+      </a>
+
+      {% if session.get('role') == 'admin' %}
+      <div class="nav-label">Admin</div>
+      <a href="/admin" class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+        <span class="nav-icon">⚙️</span> Admin Panel
+      </a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="/logout" class="nav-link" style="color:var(--danger)">
+        <span class="nav-icon">🚪</span> Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <h1 class="topbar-title">{% block page_title %}Dashboard{% endblock %}</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="topbar-city">📍 <span id="topbarCity">–</span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer"></div>
+
+<script>
+  // Load user info
+  fetch('/api/me').then(r=>r.json()).then(u=>{
+    document.getElementById('sidebarName').textContent = u.name;
+    document.getElementById('sidebarRole').textContent = u.role;
+    document.getElementById('sidebarAvatar').textContent = u.name[0].toUpperCase();
+    document.getElementById('topbarCity').textContent = u.city;
+  });
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('mobileOverlay').classList.toggle('open');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('mobileOverlay').classList.remove('open');
+  }
+
+  function showToast(msg, type='info') {
+    const icons = {success:'✅', error:'❌', info:'ℹ️', warning:'⚠️'};
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${msg}`;
+    document.getElementById('toastContainer').appendChild(t);
+    setTimeout(()=>t.remove(), 4000);
+  }
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

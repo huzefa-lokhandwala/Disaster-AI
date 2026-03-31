@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}AI Assistant{% endblock %}
+{% block page_title %}AI Safety Assistant{% endblock %}
+
+{% block content %}
+<div style="max-width:800px;margin:0 auto">
+  <div style="margin-bottom:16px;padding:14px 18px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:10px">
+    <span style="font-size:20px">🤖</span>
+    <span>Ask me anything about disaster preparedness, emergency protocols, or safety tips. I'm available 24/7!</span>
+  </div>
+
+  <div class="chat-container">
+    <!-- Quick prompts above chat -->
+    <div class="quick-prompts" style="border-radius:var(--radius) var(--radius) 0 0;border-bottom:none">
+      <span style="font-size:12px;color:var(--text-muted);align-self:center">Quick Ask:</span>
+      <button class="quick-btn" onclick="sendQuick('What to do during an earthquake?')">🌍 Earthquake</button>
+      <button class="quick-btn" onclick="sendQuick('Fire emergency steps')">🔥 Fire Safety</button>
+      <button class="quick-btn" onclick="sendQuick('Flood preparedness tips')">🌊 Flood</button>
+      <button class="quick-btn" onclick="sendQuick('Cyclone safety measures')">🌀 Cyclone</button>
+      <button class="quick-btn" onclick="sendQuick('What should be in an emergency kit?')">🎒 Emergency Kit</button>
+      <button class="quick-btn" onclick="sendQuick('Emergency contact numbers India')">📞 Contacts</button>
+    </div>
+
+    <div class="chat-window" id="chatWindow">
+      <!-- Welcome message -->
+      <div class="chat-msg bot">
+        <div class="chat-avatar bot">🤖</div>
+        <div class="chat-bubble">
+          👋 Hello! I'm <strong>DisasterPrep AI</strong>, your emergency preparedness assistant.
+
+I can help you with:
+• 🌍 Earthquake safety protocols
+• 🔥 Fire emergency response
+• 🌊 Flood preparedness
+• 🌀 Cyclone safety
+• 🎒 Emergency kit contents
+• 📞 Emergency contacts
+
+What would you like to know?
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <input type="text" id="chatInput" class="chat-input"
+        placeholder="Ask about earthquake, fire, flood, cyclone safety…"
+        onkeydown="if(event.key==='Enter')sendMessage()"/>
+      <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn">Send 🚀</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function scrollToBottom() {
+  const w = document.getElementById('chatWindow');
+  w.scrollTop = w.scrollHeight;
+}
+
+function appendMsg(role, text) {
+  const w = document.getElementById('chatWindow');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  const avatar = role === 'bot' ? '🤖' : '👤';
+  div.innerHTML = `
+    <div class="chat-avatar ${role}">${avatar}</div>
+    <div class="chat-bubble">${text}</div>
+  `;
+  w.appendChild(div);
+  scrollToBottom();
+  return div;
+}
+
+function showTyping() {
+  const w = document.getElementById('chatWindow');
+  const div = document.createElement('div');
+  div.className = 'chat-msg bot';
+  div.id = 'typingIndicator';
+  div.innerHTML = `
+    <div class="chat-avatar bot">🤖</div>
+    <div class="chat-bubble">
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  w.appendChild(div);
+  scrollToBottom();
+}
+
+function removeTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  appendMsg('user', msg);
+  showTyping();
+
+  try {
+    const r = await fetch('/api/chatbot', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: msg})
+    });
+    const d = await r.json();
+    removeTyping();
+    appendMsg('bot', d.response || d.error || 'Sorry, I could not process that.');
+  } catch {
+    removeTyping();
+    appendMsg('bot', '❌ Connection error. Please try again.');
+  }
+
+  input.disabled = false;
+  document.getElementById('sendBtn').disabled = false;
+  input.focus();
+}
+
+function sendQuick(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+document.getElementById('chatInput').focus();
+</script>
+{% endblock %}

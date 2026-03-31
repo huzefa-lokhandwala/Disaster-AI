@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login – DisasterPrep</title>
+  <meta name="description" content="Login to DisasterPrep – Disaster Management Training Platform"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛑️</text></svg>"/>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-bg"></div>
+  <div class="auth-bg-particles" id="particles"></div>
+
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="logo-icon">⛑️</span>
+      <h1>DisasterPrep</h1>
+      <p>Disaster Management Training Platform</p>
+    </div>
+
+    <div class="auth-form">
+      <h2>Welcome Back</h2>
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input id="email" type="email" class="form-control" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" class="form-control" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="btn btn-primary btn-full btn-lg" id="loginBtn" onclick="doLogin()">
+        🔐 Sign In
+      </button>
+      <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted)">
+        New here? <a href="/signup" style="color:var(--primary);font-weight:600;">Create account →</a>
+      </p>
+      <div style="margin-top:24px;padding:14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;font-size:13px;color:var(--text-secondary);">
+        <strong style="color:var(--primary);">Demo Accounts:</strong><br/>
+        Admin: admin@disasterprep.com / admin123<br/>
+        Student: Sign up with any email
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<script>
+  // Particles
+  const pc = document.getElementById('particles');
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const s=20+Math.random()*60;
+    p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*5}s;animation-duration:${6+Math.random()*6}s`;
+    pc.appendChild(p);
+  }
+
+  function showToast(msg,type='error'){
+    const icons={success:'✅',error:'❌',info:'ℹ️',warning:'⚠️'};
+    const t=document.createElement('div');
+    t.className=`toast toast-${type}`;
+    t.innerHTML=`<span>${icons[type]}</span> ${msg}`;
+    document.getElementById('toastContainer').appendChild(t);
+    setTimeout(()=>t.remove(),4000);
+  }
+
+  async function doLogin(){
+    const btn=document.getElementById('loginBtn');
+    const email=document.getElementById('email').value.trim();
+    const password=document.getElementById('password').value;
+    if(!email||!password){showToast('Please fill all fields','warning');return;}
+    btn.disabled=true;btn.textContent='Signing in…';
+    try{
+      const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      const d=await r.json();
+      if(r.ok){
+        showToast('Login successful! Redirecting…','success');
+        setTimeout(()=>window.location.href=d.role==='admin'?'/admin':'/dashboard',800);
+      }else{
+        showToast(d.error||'Login failed','error');
+        btn.disabled=false;btn.innerHTML='🔐 Sign In';
+      }
+    }catch{
+      showToast('Network error. Try again.','error');
+      btn.disabled=false;btn.innerHTML='🔐 Sign In';
+    }
+  }
+
+  document.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+</script>
+</body>
+</html>

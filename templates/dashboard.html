@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Student Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div id="dashContent">
+  <div class="loading"><div class="spinner"></div> Loading your dashboard…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadDashboard() {
+  const r = await fetch('/api/dashboard');
+  const d = await r.json();
+
+  const alertsHTML = d.alerts.length
+    ? d.alerts.map(a => `
+        <div class="alert-banner ${a.severity==='danger'?'danger':a.severity==='warning'?'warning':'info'}">
+          <span class="alert-icon">${a.severity==='danger'?'🚨':a.severity==='warning'?'⚠️':'ℹ️'}</span>
+          <div class="alert-content">
+            <div class="alert-title">Emergency Alert</div>
+            <div class="alert-msg">${a.message}</div>
+            <div class="alert-time">${new Date(a.created_at).toLocaleString()}</div>
+          </div>
+        </div>`).join('')
+    : '<p style="color:var(--text-muted);font-size:14px;">✅ No active alerts for your city.</p>';
+
+  const badgesHTML = d.badges.length
+    ? d.badges.map(b => `<span class="badge" style="background:${b.color}22;border-color:${b.color}55;color:${b.color}">${b.icon} ${b.name}</span>`).join('')
+    : '<span style="color:var(--text-muted);font-size:14px;">Complete modules and drills to earn badges!</span>';
+
+  const prepColor = d.preparedness >= 70 ? '#22c55e' : d.preparedness >= 40 ? '#f59e0b' : '#ef4444';
+  const R = 70, C = 2 * Math.PI * R;
+  const offset = C - (d.preparedness / 100) * C;
+
+  document.getElementById('dashContent').innerHTML = `
+    <!-- Alert banners -->
+    ${d.alerts.length ? `<div style="margin-bottom:20px">${alertsHTML}</div>` : ''}
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card purple">
+        <div class="stat-icon purple">🛡️</div>
+        <div>
+          <div class="stat-value" id="prepNum">${d.preparedness}%</div>
+          <div class="stat-label">Preparedness Score</div>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon orange">📚</div>
+        <div>
+          <div class="stat-value">${d.modules_completed}/${d.total_modules}</div>
+          <div class="stat-label">Modules Completed</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon green">⭐</div>
+        <div>
+          <div class="stat-value">${d.total_points}</div>
+          <div class="stat-label">Total Points</div>
+        </div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-icon blue">🏆</div>
+        <div>
+          <div class="stat-value">#${d.rank}</div>
+          <div class="stat-label">Leaderboard Rank</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="grid-2" style="margin-bottom:20px">
+      <!-- Preparedness Dial -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🎯 Preparedness Score</div>
+        </div>
+        <div style="text-align:center">
+          <div class="prep-dial">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <defs>
+                <linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#8b5cf6"/>
+                </linearGradient>
+              </defs>
+              <circle class="dial-bg" cx="80" cy="80" r="${R}"/>
+              <circle class="dial-fill" cx="80" cy="80" r="${R}"
+                stroke-dasharray="${C}" stroke-dashoffset="${C}"
+                id="dialCircle"/>
+            </svg>
+            <div class="prep-score-text">
+              <div class="prep-score-num" id="dialNum">0%</div>
+              <div class="prep-score-label">Score</div>
+            </div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:8px">
+            ${d.preparedness < 40 ? '🔴 Needs improvement' : d.preparedness < 70 ? '🟡 Getting better!' : '🟢 Well Prepared!'}
+          </p>
+          <div style="margin-top:16px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px">
+              <span>Quiz Average: ${d.quiz_avg}%</span>
+              <span>Drills: ${d.drill_scores.length}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${d.preparedness}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drill History Chart -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Drill Performance</div>
+          <a href="/drill" class="btn btn-sm btn-secondary">Take Drill →</a>
+        </div>
+        ${d.drill_scores.length ? `<canvas id="drillChart" height="200"></canvas>` :
+          `<div class="empty-state">
+            <span class="empty-icon">🎯</span>
+            <div class="empty-title">No drills yet!</div>
+            <p style="font-size:13px;margin-top:8px"><a href="/drill" class="btn btn-primary btn-sm" style="margin-top:12px">Start Your First Drill</a></p>
+          </div>`}
+      </div>
+    </div>
+
+    <!-- Badges & Alerts -->
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🎖️ My Badges</div></div>
+        <div class="badge-grid">${badgesHTML}</div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+          <p style="font-size:12px;color:var(--text-muted)">Complete modules and achieve high drill scores to unlock more badges.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔔 Latest Alerts</div>
+          <a href="/alerts" style="font-size:13px;color:var(--primary)">View all</a>
+        </div>
+        ${alertsHTML}
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px">⚡ Quick Actions</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px">
+        <a href="/modules" class="btn btn-primary">📚 Browse Modules</a>
+        <a href="/drill" class="btn btn-danger">🎯 Start Drill</a>
+        <a href="/leaderboard" class="btn btn-secondary">🏆 Leaderboard</a>
+        <a href="/chatbot" class="btn btn-secondary">🤖 Ask AI</a>
+        <a href="/contacts" class="btn btn-secondary">📞 Emergency Contacts</a>
+      </div>
+    </div>
+  `;
+
+  // Animate dial
+  setTimeout(() => {
+    document.getElementById('dialCircle').style.strokeDashoffset = offset;
+    let count = 0;
+    const target = d.preparedness;
+    const interval = setInterval(() => {
+      count = Math.min(count + 2, target);
+      document.getElementById('dialNum').textContent = count + '%';
+      if (count >= target) clearInterval(interval);
+    }, 20);
+  }, 300);
+
+  // Drill chart
+  if (d.drill_scores.length) {
+    const ctx = document.getElementById('drillChart').getContext('2d');
+    const labels = d.drill_scores.map(s => s.type.charAt(0).toUpperCase() + s.type.slice(1));
+    const scores = d.drill_scores.map(s => Math.round(s.score / Math.max(s.max,1) * 100));
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Score %',
+          data: scores,
+          backgroundColor: ['rgba(99,102,241,.7)', 'rgba(239,68,68,.7)', 'rgba(59,130,246,.7)', 'rgba(245,158,11,.7)'],
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,.06)' }, ticks: { color: '#64748b' } },
+          x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+        }
+      }
+    });
+  }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

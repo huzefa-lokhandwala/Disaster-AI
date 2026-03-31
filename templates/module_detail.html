@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Module{% endblock %}
+{% block page_title %}Module Detail{% endblock %}
+
+{% block content %}
+<div id="moduleContent">
+  <div class="loading"><div class="spinner"></div> Loading module…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MODULE_ID = {{ module_id }};
+let currentPhase = 'before';
+let quizAnswers = [];
+let quizStarted = false;
+let questions = [];
+
+async function loadModule() {
+  const r = await fetch(`/api/modules/${MODULE_ID}`);
+  const m = await r.json();
+  if (r.status === 404) { document.getElementById('moduleContent').innerHTML = '<p>Module not found.</p>'; return; }
+
+  document.getElementById('moduleContent').innerHTML = `
+    <!-- Header -->
+    <div class="card module-detail-header" style="margin-bottom:24px;background:linear-gradient(135deg,var(--bg-card),var(--bg-card-hover))">
+      <span class="module-detail-icon">${m.icon}</span>
+      <h2 class="module-detail-title">${m.title}</h2>
+      <p class="module-detail-desc">${m.description}</p>
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:20px;flex-wrap:wrap">
+        <span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600">⭐ ${m.points} Points</span>
+        ${m.completed ? `<span style="background:rgba(34,197,94,.15);color:#22c55e;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600">✓ Completed</span>` : ''}
+      </div>
+    </div>
+
+    <!-- Phase tabs -->
+    <div class="phase-tabs" style="margin-bottom:24px">
+      <button class="phase-tab active" id="tab-before" onclick="switchPhase('before')">📋 Before</button>
+      <button class="phase-tab" id="tab-during" onclick="switchPhase('during')">⚡ During</button>
+      <button class="phase-tab" id="tab-after" onclick="switchPhase('after')">✅ After</button>
+      <button class="phase-tab" id="tab-quiz" onclick="loadQuiz()">📝 Quiz</button>
+    </div>
+
+    <!-- Phase contents -->
+    <div id="content-before" class="card phase-content active" style="margin-bottom:20px">
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--secondary)">📋 What to do BEFORE a ${m.title.split(' ')[0]}</h3>
+      <ul class="item-list">${m.content.before.map(i=>`<li>${i}</li>`).join('')}</ul>
+    </div>
+    <div id="content-during" class="card phase-content" style="margin-bottom:20px">
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--danger)">⚡ What to do DURING a ${m.title.split(' ')[0]}</h3>
+      <ul class="item-list">${m.content.during.map(i=>`<li>${i}</li>`).join('')}</ul>
+    </div>
+    <div id="content-after" class="card phase-content" style="margin-bottom:20px">
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--success)">✅ What to do AFTER a ${m.title.split(' ')[0]}</h3>
+      <ul class="item-list">${m.content.after.map(i=>`<li>${i}</li>`).join('')}</ul>
+    </div>
+    <div id="content-quiz" class="card phase-content" style="margin-bottom:20px">
+      <div id="quizArea"><div class="loading"><div class="spinner"></div> Loading quiz…</div></div>
+    </div>
+  `;
+}
+
+function switchPhase(phase) {
+  document.querySelectorAll('.phase-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.phase-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(`tab-${phase}`).classList.add('active');
+  document.getElementById(`content-${phase}`).classList.add('active');
+  currentPhase = phase;
+}
+
+async function loadQuiz() {
+  switchPhase('quiz');
+  if (quizStarted) return;
+  quizStarted = true;
+  const r = await fetch(`/api/quiz/${MODULE_ID}`);
+  const data = await r.json();
+  questions = data.questions;
+  quizAnswers = new Array(questions.length).fill(null);
+  renderQuiz();
+}
+
+function renderQuiz() {
+  const letters = ['A','B','C','D'];
+  document.getElementById('quizArea').innerHTML = `
+    <h3 style="font-size:18px;font-weight:700;margin-bottom:20px">📝 Knowledge Quiz</h3>
+    <div class="quiz-section">
+      ${questions.map((q,qi) => `
+        <div class="quiz-question" id="q-${qi}">
+          <div class="question-num">Question ${qi+1} of ${questions.length}</div>
+          <div class="question-text">${q.q}</div>
+          <div class="quiz-options">
+            ${q.opts.map((opt,oi) => `
+              <button class="quiz-option" id="opt-${qi}-${oi}" onclick="selectAnswer(${qi},${oi})">
+                <span class="quiz-num">${letters[oi]}</span> ${opt}
+              </button>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+      <div style="margin-top:24px;display:flex;justify-content:space-between;align-items:center">
+        <span id="answeredCount" style="font-size:13px;color:var(--text-muted)">0/${questions.length} answered</span>
+        <button class="btn btn-primary btn-lg" onclick="submitQuiz()">Submit Quiz 📤</button>
+      </div>
+    </div>
+  `;
+}
+
+function selectAnswer(qi, oi) {
+  quizAnswers[qi] = oi;
+  document.querySelectorAll(`#q-${qi} .quiz-option`).forEach(b => b.classList.remove('selected'));
+  document.getElementById(`opt-${qi}-${oi}`).classList.add('selected');
+  const answered = quizAnswers.filter(a => a !== null).length;
+  document.getElementById('answeredCount').textContent = `${answered}/${questions.length} answered`;
+}
+
+async function submitQuiz() {
+  if (quizAnswers.some(a => a === null)) {
+    showToast('Please answer all questions', 'warning');
+    return;
+  }
+  const r = await fetch('/api/quiz/submit', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({module_id: MODULE_ID, answers: quizAnswers})
+  });
+  const result = await r.json();
+  const emoji = result.percentage >= 80 ? '🎉' : result.percentage >= 60 ? '👍' : '😔';
+  document.getElementById('quizArea').innerHTML = `
+    <div style="text-align:center;padding:40px 20px">
+      <div style="font-size:72px;margin-bottom:16px">${emoji}</div>
+      <h3 style="font-size:28px;font-weight:800;margin-bottom:8px">${result.percentage}% Score!</h3>
+      <p style="font-size:16px;color:var(--text-secondary);margin-bottom:20px">
+        You got <strong>${result.correct}/${result.total}</strong> questions correct.
+      </p>
+      ${result.passed
+        ? `<div style="background:rgba(34,197,94,.1);border:1px solid #22c55e;border-radius:10px;padding:16px;margin-bottom:24px;color:#22c55e">
+             <strong>✓ Module Completed!</strong><br/>
+             <span style="font-size:22px;font-weight:800">+${result.points_earned} points</span> earned!
+           </div>`
+        : `<div style="background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:10px;padding:16px;margin-bottom:24px;color:#f87171">
+             Score 60% or above to complete this module. Try again!
+           </div>`}
+      <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="retakeQuiz()">🔄 Retake Quiz</button>
+        <a href="/modules" class="btn btn-primary">📚 Back to Modules</a>
+        <a href="/drill" class="btn btn-danger">🎯 Practice Drill</a>
+      </div>
+    </div>
+  `;
+}
+
+function retakeQuiz() {
+  quizStarted = false;
+  quizAnswers = [];
+  loadQuiz();
+}
+
+loadModule();
+</script>
+{% endblock %}

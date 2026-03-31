@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}Virtual Drill{% endblock %}
+{% block page_title %}Virtual Disaster Drill{% endblock %}
+
+{% block content %}
+<!-- Drill Selector -->
+<div id="drillSelector">
+  <div style="text-align:center;margin-bottom:32px">
+    <h2 style="font-size:28px;font-weight:800;margin-bottom:8px">🎯 Virtual Disaster Drill</h2>
+    <p style="color:var(--text-secondary);font-size:16px;max-width:560px;margin:0 auto">
+      Experience realistic disaster scenarios. Make the right decisions under pressure — every choice matters!
+    </p>
+  </div>
+  <div class="drill-selector">
+    <div class="drill-type-card" onclick="startDrill('earthquake')">
+      <span class="dtype-icon">🌍</span>
+      <div class="dtype-name">Earthquake</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">5 scenarios</div>
+    </div>
+    <div class="drill-type-card" onclick="startDrill('fire')">
+      <span class="dtype-icon">🔥</span>
+      <div class="dtype-name">Fire</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">3 scenarios</div>
+    </div>
+    <div class="drill-type-card" onclick="startDrill('flood')">
+      <span class="dtype-icon">🌊</span>
+      <div class="dtype-name">Flood</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">3 scenarios</div>
+    </div>
+    <div class="drill-type-card" onclick="startDrill('cyclone')">
+      <span class="dtype-icon">🌀</span>
+      <div class="dtype-name">Cyclone</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">3 scenarios</div>
+    </div>
+  </div>
+
+  <!-- Recent scores -->
+  <div class="card" style="max-width:600px;margin:0 auto">
+    <div class="card-title" style="margin-bottom:16px">📊 How Drills Work</div>
+    <div style="display:grid;gap:12px">
+      <div style="display:flex;align-items:center;gap:14px;padding:12px;background:rgba(34,197,94,.08);border-radius:8px;border:1px solid rgba(34,197,94,.2)">
+        <span style="font-size:24px">✅</span>
+        <div>
+          <div style="font-weight:600;font-size:14px">Correct Actions = Points</div>
+          <div style="font-size:13px;color:var(--text-muted)">Making the right decision earns you up to 30 points per step</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding:12px;background:rgba(239,68,68,.08);border-radius:8px;border:1px solid rgba(239,68,68,.2)">
+        <span style="font-size:24px">❌</span>
+        <div>
+          <div style="font-weight:600;font-size:14px">Wrong Choices = Penalty</div>
+          <div style="font-size:13px;color:var(--text-muted)">Poor decisions deduct points — just like in real emergencies!</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding:12px;background:rgba(245,158,11,.08);border-radius:8px;border:1px solid rgba(245,158,11,.2)">
+        <span style="font-size:24px">⏱️</span>
+        <div>
+          <div style="font-weight:600;font-size:14px">Beat the Timer</div>
+          <div style="font-size:13px;color:var(--text-muted)">Each drill has a time limit. Speed and accuracy both count!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Live Score Widget (hidden initially) -->
+<div class="live-score" id="liveScore" style="display:none">
+  <div class="score-val" id="liveScoreVal">0</div>
+  <div class="score-label">Points</div>
+  <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="liveStepInfo">Step 0/0</div>
+</div>
+
+<!-- Drill Arena -->
+<div class="drill-arena" id="drillArena">
+  <div class="drill-page">
+    <div class="drill-header">
+      <h2 class="drill-title" id="drillTitle"></h2>
+      <p class="drill-intro" id="drillIntro"></p>
+      <div class="drill-progress-info">
+        <span>Step <strong id="stepNum">1</strong> of <strong id="totalSteps">5</strong></span>
+        <span>|</span>
+        <span>⏱️ <span class="drill-timer" id="drillTimer">60</span>s</span>
+      </div>
+      <div class="progress-bar" style="max-width:500px;margin:12px auto 0">
+        <div class="progress-fill" id="drillProgressBar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div id="scenarioArea"></div>
+    <div id="feedbackArea"></div>
+
+    <div style="text-align:center;margin-top:20px" id="nextBtnArea" style="display:none">
+      <button class="btn btn-primary btn-lg" id="nextBtn" onclick="nextStep()" style="display:none">
+        Next Scenario →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Results Screen -->
+<div id="resultsScreen" style="display:none">
+  <div class="card drill-results">
+    <div class="result-grade" id="resultGrade">A</div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <div class="result-stats">
+      <div class="result-stat">
+        <div class="rs-val" id="rScore" style="color:var(--primary)">0</div>
+        <div class="rs-label">Points Earned</div>
+      </div>
+      <div class="result-stat">
+        <div class="rs-val" id="rPct" style="color:var(--secondary)">0%</div>
+        <div class="rs-label">Accuracy</div>
+      </div>
+      <div class="result-stat">
+        <div class="rs-val" id="rTime" style="color:var(--success)">0s</div>
+        <div class="rs-label">Time Taken</div>
+      </div>
+    </div>
+    <div class="result-breakdown" id="resultBreakdown"></div>
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-lg" onclick="resetDrill()">🔄 Try Again</button>
+      <button class="btn btn-primary btn-lg" onclick="window.location.href='/drill'">🎯 Other Drills</button>
+      <a href="/leaderboard" class="btn btn-warning btn-lg">🏆 Leaderboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let drillData = null;
+let currentStep = 0;
+let answers = {};
+let timerInterval = null;
+let secondsLeft = 0;
+let totalSeconds = 0;
+let liveScore = 0;
+let drillType = '';
+let answerSelected = false;
+
+async function startDrill(type) {
+  drillType = type;
+  const r = await fetch(`/api/drill/start/${type}`);
+  drillData = await r.json();
+
+  document.getElementById('drillSelector').style.display = 'none';
+  document.getElementById('drillArena').classList.add('active');
+  document.getElementById('liveScore').style.display = 'block';
+
+  document.getElementById('drillTitle').textContent = drillData.title;
+  document.getElementById('drillIntro').textContent = drillData.intro;
+  document.getElementById('totalSteps').textContent = drillData.total_steps;
+
+  secondsLeft = drillData.total_steps * 25;
+  totalSeconds = secondsLeft;
+  currentStep = 0;
+  answers = {};
+  liveScore = 0;
+  updateLiveScore();
+
+  startTimer();
+  showStep(0);
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    updateTimerDisplay();
+    if (secondsLeft <= 0) {
+      clearInterval(timerInterval);
+      finishDrill();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('drillTimer');
+  el.textContent = secondsLeft;
+  el.className = secondsLeft <= 10 ? 'drill-timer urgent' : 'drill-timer';
+}
+
+function updateLiveScore() {
+  document.getElementById('liveScoreVal').textContent = Math.max(0, liveScore);
+  document.getElementById('liveStepInfo').textContent = `Step ${currentStep + 1}/${drillData ? drillData.total_steps : '?'}`;
+}
+
+function showStep(idx) {
+  const step = drillData.steps[idx];
+  answerSelected = false;
+
+  const letters = ['A','B','C','D'];
+  document.getElementById('stepNum').textContent = idx + 1;
+  document.getElementById('drillProgressBar').style.width = `${(idx / drillData.total_steps) * 100}%`;
+
+  document.getElementById('scenarioArea').innerHTML = `
+    <div class="scenario-card">
+      <div class="scenario-text">${step.scenario}</div>
+      <div class="scenario-question">${step.question}</div>
+      <div class="options-grid" id="optionsGrid">
+        ${step.options.map((opt, oi) => `
+          <button class="option-btn" id="opt-${oi}" onclick="selectOption(${idx}, ${oi})">
+            <span class="option-letter">${letters[oi]}</span>
+            ${opt.text}
+          </button>`).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('feedbackArea').innerHTML = '';
+  document.getElementById('nextBtn').style.display = 'none';
+  updateLiveScore();
+}
+
+// Local point map for immediate feedback — exactly mirrors DRILLS in app.py
+// Each row = [optA_pts, optB_pts, optC_pts, optD_pts] per step
+const LOCAL_POINTS = {
+  // earthquake: A=-20, B=+30, C=-30, D=-20 | A=5, B=+30, C=5, D=10 | A=-30, B=+30, C=-10, D=-20 | A=-20, B=+30, C=10, D=-15 | A=-10, B=+30, C=5, D=-20
+  earthquake: [[-20,30,-30,-20],[5,30,5,10],[-30,30,-10,-20],[-20,30,10,-15],[-10,30,5,-20]],
+  // fire: A=-20, B=+30, C=-25, D=-15 | A=-20, B=+30, C=-5, D=-25 | A=-20, B=+30, C=-5, D=-10
+  fire:       [[-20,30,-25,-15],[-20,30,-5,-25],[-20,30,-5,-10]],
+  // flood: A=-20, B=+30, C=-10, D=-5 | A=-30, B=+30, C=5, D=-30 | A=-15, B=+30, C=-20, D=10
+  flood:      [[-20,30,-10,-5],[-30,30,5,-30],[-15,30,-20,10]],
+  // cyclone: A=-30, B=+30, C=-20, D=-10 | A=-30, B=+30, C=-20, D=-15 | A=-30, B=+30, C=-15, D=-25
+  cyclone:    [[-30,30,-20,-10],[-30,30,-20,-15],[-30,30,-15,-25]],
+};
+
+const LOCAL_FEEDBACK = {
+  earthquake: [
+    ['❌ Running outside is dangerous—debris may fall!','✅ Drop, Cover, Hold On is correct!','❌ Never use an elevator during a quake!','❌ Glass may shatter near windows!'],
+    ['⚠️ Corners aren\'t as safe as sturdy furniture.','✅ A sturdy table protects from falling objects!','⚠️ The doorway myth is outdated.','⚠️ Interior walls are okay but a table is better.'],
+    ['❌ Switches can spark and ignite gas—dangerous!','✅ Evacuate, don\'t touch switches, call gas company!','❌ You should evacuate immediately when smelling gas!','❌ Safety first—evacuate immediately!'],
+    ['❌ Never run into a building during aftershock!','✅ Stay in open areas, drop and cover!','⚠️ Move away from hazards first.','❌ Your safety is priority, not recording!'],
+    ['⚠️ Repeated calls block emergency lines.','✅ Texts use less bandwidth—keep lines free!','⚠️ Social media helps but texts are more reliable.','❌ You should communicate through appropriate channels.'],
+  ],
+  fire: [
+    ['❌ Check the door for heat before opening!','✅ Always alert others and call 101 first!','❌ Your life is more important than belongings!','❌ Hiding delays evacuation—get out!'],
+    ['❌ Running upright exposes you to more smoke!','✅ Crawling keeps you below smoke level!','⚠️ Holding breath helps briefly but crawling is safer.','❌ Smoke is deadly—evacuate now!'],
+    ['❌ Opening without checking could release fire!','✅ Feel the door for heat before opening!','⚠️ Knocking won\'t tell you if fire is behind the door.','❌ Breaking down could expose you to fire.'],
+  ],
+  flood: [
+    ['❌ Flash floods rise extremely rapidly!','✅ Moving to higher ground is the priority!','⚠️ Driving through floodwater is very dangerous.','❌ This won\'t help and wastes time.'],
+    ['❌ Even 15cm of water can sweep a car away!','✅ Turn Around, Don\'t Drown!','⚠️ Better to move to higher ground.','❌ Speeding through floodwater is extremely dangerous!'],
+    ['❌ Never go to lower areas—go UP!','✅ Move to highest point and signal for help!','❌ Floodwater has dangerous currents—don\'t swim.','⚠️ Social media helps but calling services is more reliable.'],
+  ],
+  cyclone: [
+    ['❌ Never go near water during a cyclone!','✅ Securing the house is critical!','❌ Take cyclone warnings seriously!','❌ Use your time to prepare, not socialize!'],
+    ['❌ Windows can shatter from debris!','✅ Interior rooms provide the most protection!','❌ The roof is the most dangerous place!','❌ Stay inside your main structure!'],
+    ['❌ The eye is temporary—the back eye wall is more dangerous!','✅ Stay sheltered until official all-clear!','❌ The storm hasn\'t passed yet!','❌ Extremely dangerous—roads flooded and storm returns!'],
+  ],
+};
+
+async function selectOption(stepIdx, optIdx) {
+  if (answerSelected) return;
+  answerSelected = true;
+
+  const step = drillData.steps[stepIdx];
+  answers[step.id] = optIdx;
+
+  // Local immediate feedback
+  const pts = (LOCAL_POINTS[drillType] || [])[stepIdx]?.[optIdx] ?? 0;
+  const fb  = (LOCAL_FEEDBACK[drillType] || [])[stepIdx]?.[optIdx] ?? 'Answer recorded.';
+  const correct = pts > 0;
+
+  liveScore = Math.max(0, liveScore + pts);
+  updateLiveScore();
+
+  const opts = document.querySelectorAll('.option-btn');
+  opts.forEach(b => b.disabled = true);
+  document.getElementById(`opt-${optIdx}`).classList.add(correct ? 'correct' : 'wrong');
+
+  const fbType = pts > 0 ? 'positive' : pts === 0 ? 'neutral' : 'negative';
+  document.getElementById('feedbackArea').innerHTML = `
+    <div class="feedback-box ${fbType}">
+      ${fb}<br>
+      <strong>${pts > 0 ? '+' : ''}${pts} points</strong>
+    </div>
+  `;
+
+  if (currentStep < drillData.total_steps - 1) {
+    document.getElementById('nextBtn').style.display = 'inline-flex';
+  } else {
+    setTimeout(finishDrill, 1400);
+  }
+}
+
+function nextStep() {
+  currentStep++;
+  showStep(currentStep);
+}
+
+async function finishDrill() {
+  clearInterval(timerInterval);
+  const timeTaken = totalSeconds - secondsLeft;
+
+  const r = await fetch('/api/drill/submit', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      disaster_type: drillType,
+      answers,
+      time_taken: timeTaken
+    })
+  });
+  const result = await r.json();
+
+  document.getElementById('drillArena').classList.remove('active');
+  document.getElementById('liveScore').style.display = 'none';
+  document.getElementById('resultsScreen').style.display = 'block';
+
+  const grades = {'A+':'🏆 Outstanding!', 'A':'⭐ Excellent!', 'B':'👍 Good Job!', 'C':'📚 Decent', 'D':'💪 Keep Practicing'};
+  document.getElementById('resultGrade').textContent = result.grade;
+  document.getElementById('resultTitle').textContent = grades[result.grade] || '🎯 Drill Complete!';
+  document.getElementById('resultSub').textContent = `You scored ${result.percentage}% in the ${drillType} emergency drill.`;
+  document.getElementById('rScore').textContent = result.score;
+  document.getElementById('rPct').textContent = result.percentage + '%';
+  document.getElementById('rTime').textContent = timeTaken + 's';
+
+  document.getElementById('resultBreakdown').innerHTML = `
+    <h4 style="font-size:15px;font-weight:700;margin-bottom:12px">📋 Step Breakdown</h4>
+    ${result.results.map(r => `
+      <div class="result-item ${r.correct ? 'correct' : 'wrong'}">
+        <strong>${r.correct ? '✅' : '❌'}</strong> ${r.feedback}
+        <span style="float:right;font-weight:700">${r.points > 0 ? '+' : ''}${r.points} pts</span>
+      </div>`).join('')}
+  `;
+}
+
+function resetDrill() {
+  document.getElementById('resultsScreen').style.display = 'none';
+  startDrill(drillType);
+}
+</script>
+{% endblock %}

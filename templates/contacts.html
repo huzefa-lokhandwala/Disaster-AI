@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Emergency Contacts{% endblock %}
+{% block page_title %}Emergency Contacts{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px">
+  <p style="color:var(--text-secondary)">Save these numbers. In an emergency, every second counts.</p>
+</div>
+
+<!-- SOS Banner -->
+<div class="card" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(249,115,22,.1));border-color:rgba(239,68,68,.4);text-align:center;padding:28px">
+  <div style="font-size:48px;margin-bottom:8px">🆘</div>
+  <div style="font-size:26px;font-weight:900;color:#ef4444;margin-bottom:4px">NATIONAL EMERGENCY: 112</div>
+  <div style="font-size:14px;color:var(--text-secondary)">Works from any phone, any network, anywhere in India</div>
+</div>
+
+<div id="contactsList">
+  <div class="loading"><div class="spinner"></div> Loading contacts…</div>
+</div>
+
+<!-- Safety Tips -->
+<div class="card" style="margin-top:24px">
+  <div class="card-title" style="margin-bottom:16px">💡 Emergency Call Tips</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+    <div style="padding:14px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:20px;margin-bottom:8px">🗣️</div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">State your location first</div>
+      <div style="font-size:13px;color:var(--text-muted)">Give exact address, landmark, or GPS coordinates immediately</div>
+    </div>
+    <div style="padding:14px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:20px;margin-bottom:8px">😌</div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">Stay calm and clear</div>
+      <div style="font-size:13px;color:var(--text-muted)">Speak slowly and clearly so the operator can understand you</div>
+    </div>
+    <div style="padding:14px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:20px;margin-bottom:8px">📱</div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">Don't hang up first</div>
+      <div style="font-size:13px;color:var(--text-muted)">Let the emergency operator end the call after all info is given</div>
+    </div>
+    <div style="padding:14px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid var(--border)">
+      <div style="font-size:20px;margin-bottom:8px">💬</div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">Text if you can't talk</div>
+      <div style="font-size:13px;color:var(--text-muted)">In some situations texting is safer than speaking aloud</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadContacts() {
+  const r = await fetch('/api/contacts');
+  const contacts = await r.json();
+
+  const catColors = {
+    emergency: { bg:'rgba(239,68,68,.1)', border:'rgba(239,68,68,.3)', color:'#ef4444' },
+    helpline:  { bg:'rgba(59,130,246,.1)',border:'rgba(59,130,246,.3)', color:'#3b82f6' },
+    medical:   { bg:'rgba(34,197,94,.1)', border:'rgba(34,197,94,.3)', color:'#22c55e' },
+  };
+
+  const cats = {};
+  contacts.forEach(c => {
+    if (!cats[c.category]) cats[c.category] = [];
+    cats[c.category].push(c);
+  });
+
+  const catLabels = { emergency:'🚨 Emergency Services', helpline:'📞 Helplines', medical:'🏥 Medical' };
+
+  document.getElementById('contactsList').innerHTML = Object.entries(cats).map(([cat, list]) => `
+    <div style="margin-bottom:24px">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--text-secondary)">
+        ${catLabels[cat] || cat}
+      </h3>
+      <div style="display:grid;gap:10px">
+        ${list.map(c => {
+          const clr = catColors[c.category] || catColors.helpline;
+          return `
+            <div class="contact-card" style="background:${clr.bg};border-color:${clr.border}">
+              <div class="contact-icon" style="background:${clr.bg};border:1px solid ${clr.border}">
+                ${c.icon}
+              </div>
+              <div>
+                <div class="contact-name">${c.name}</div>
+                <div class="contact-cat">${c.category}</div>
+              </div>
+              <div class="contact-phone" style="color:${clr.color}">
+                <a href="tel:${c.phone}" style="color:inherit;text-decoration:none">${c.phone}</a>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+loadContacts();
+</script>
+{% endblock %}

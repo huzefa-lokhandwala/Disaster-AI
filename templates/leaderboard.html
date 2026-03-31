@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard{% endblock %}
+{% block page_title %}Leaderboard{% endblock %}
+
+{% block content %}
+<div id="lbContent">
+  <div class="loading"><div class="spinner"></div> Loading leaderboard…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadLeaderboard() {
+  const r = await fetch('/api/leaderboard');
+  const d = await r.json();
+  const meR = await fetch('/api/me');
+  const me = await meR.json();
+
+  const podium = d.leaderboard.slice(0,3);
+  const rest   = d.leaderboard.slice(3);
+
+  const rankEmoji = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+
+  document.getElementById('lbContent').innerHTML = `
+    <!-- My rank banner -->
+    <div class="card" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.1));border-color:rgba(99,102,241,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="font-size:36px">🏆</div>
+          <div>
+            <div style="font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Your Position</div>
+            <div style="font-size:32px;font-weight:900;background:var(--grad-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+              Rank #${d.my_rank}
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;color:var(--text-muted)">Total Points</div>
+          <div style="font-size:28px;font-weight:800;color:var(--secondary)">⭐ ${d.my_points}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Podium (top 3) -->
+    ${podium.length >= 2 ? `
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-title" style="margin-bottom:24px">🏆 Top Performers</div>
+      <div style="display:flex;align-items:flex-end;justify-content:center;gap:16px;padding:0 20px">
+        ${podium[1] ? `
+        <div style="text-align:center;flex:1">
+          <div style="font-size:32px">🥈</div>
+          <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px 12px 0 0;padding:20px 8px;margin-top:8px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:24px;font-weight:800;color:#C0C0C0">#2</div>
+            <div style="font-size:13px;font-weight:600;margin-top:4px">${podium[1].name}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${podium[1].total_points} pts</div>
+          </div>
+        </div>` : ''}
+        ${podium[0] ? `
+        <div style="text-align:center;flex:1">
+          <div style="font-size:40px">🥇</div>
+          <div style="background:linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,165,0,.1));border:2px solid rgba(255,215,0,.4);border-radius:12px 12px 0 0;padding:20px 8px;margin-top:8px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:28px;font-weight:900;color:#FFD700">#1</div>
+            <div style="font-size:14px;font-weight:700;margin-top:4px">${podium[0].name}</div>
+            <div style="font-size:13px;color:var(--secondary)">${podium[0].total_points} pts</div>
+          </div>
+        </div>` : ''}
+        ${podium[2] ? `
+        <div style="text-align:center;flex:1">
+          <div style="font-size:28px">🥉</div>
+          <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px 12px 0 0;padding:20px 8px;margin-top:8px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:22px;font-weight:800;color:#CD7F32">#3</div>
+            <div style="font-size:13px;font-weight:600;margin-top:4px">${podium[2].name}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${podium[2].total_points} pts</div>
+          </div>
+        </div>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- Full table -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:20px">📊 Full Rankings</div>
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>Rank</th><th>Student</th><th>City</th><th>Modules</th><th>Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${d.leaderboard.map((u,i) => `
+            <tr class="lb-row ${u.name===me.name?'my-row':''}">
+              <td class="lb-rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${rankEmoji(i)}</td>
+              <td class="lb-name">${u.name} ${u.name===me.name?'<span style="font-size:11px;color:var(--primary);margin-left:6px">(You)</span>':''}</td>
+              <td style="color:var(--text-secondary)">📍 ${u.city}</td>
+              <td style="color:var(--text-muted)">${u.modules_done}/4</td>
+              <td class="lb-pts">⭐ ${u.total_points}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      ${d.leaderboard.length === 0 ? '<div class="empty-state"><span class="empty-icon">🏆</span><div class="empty-title">No entries yet!</div></div>' : ''}
+    </div>
+  `;
+}
+loadLeaderboard();
+</script>
+{% endblock %}

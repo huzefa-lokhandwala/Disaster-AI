@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div id="adminContent">
+  <div class="loading"><div class="spinner"></div> Loading admin panel…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let drillChartInst = null, signupChartInst = null;
+
+async function loadAdmin() {
+  const [statsR, usersR] = await Promise.all([
+    fetch('/api/admin/stats'),
+    fetch('/api/admin/users'),
+  ]);
+  const stats = await statsR.json();
+  const users = await usersR.json();
+
+  document.getElementById('adminContent').innerHTML = `
+    <!-- Stats grid -->
+    <div class="stats-grid" style="margin-bottom:24px">
+      <div class="stat-card purple">
+        <div class="stat-icon purple">👥</div>
+        <div><div class="stat-value" id="statStudents">${stats.total_students}</div><div class="stat-label">Total Students</div></div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon orange">🛡️</div>
+        <div><div class="stat-value">${stats.avg_preparedness}%</div><div class="stat-label">Avg Preparedness</div></div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon green">🎯</div>
+        <div><div class="stat-value">${stats.drill_participants}</div><div class="stat-label">Drill Participants</div></div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-icon blue">📚</div>
+        <div><div class="stat-value">${stats.modules_completed}</div><div class="stat-label">Modules Completed</div></div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:20px">📊 Drill Performance by Disaster</div>
+        <canvas id="drillChart" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:20px">📈 Student Signups (Last 7 Days)</div>
+        <canvas id="signupChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- Send Alert + Top Students -->
+    <div class="grid-2" style="margin-bottom:24px">
+      <!-- Send Alert -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:20px">🚨 Send Emergency Alert</div>
+        <div class="form-group">
+          <label>Alert Message</label>
+          <textarea id="alertMsg" class="form-control" rows="3"
+            placeholder="e.g. Heavy flooding expected tonight in low-lying areas. Evacuate immediately."
+            style="resize:none"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label>Target City</label>
+            <select id="alertCity" class="form-control">
+              <option value="All">All Cities</option>
+              <option>Mumbai</option><option>Delhi</option><option>Chennai</option>
+              <option>Kolkata</option><option>Bangalore</option><option>Hyderabad</option>
+              <option>Pune</option><option>Ahmedabad</option><option>Jaipur</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Severity</label>
+            <select id="alertSeverity" class="form-control">
+              <option value="info">ℹ️ Info</option>
+              <option value="warning">⚠️ Warning</option>
+              <option value="danger">🚨 Danger</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-full" onclick="sendAlert()">🚨 Send Alert Now</button>
+        <div id="alertFeedback" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Top Students -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">🏆 Top Students</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${stats.top_students.map((s,i) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg-surface);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:20px;font-weight:800;min-width:32px;color:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--text-muted)'}">
+                ${i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}
+              </div>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:14px">${s.name}</div>
+                <div style="font-size:12px;color:var(--text-muted)">📍 ${s.city}</div>
+              </div>
+              <div style="font-weight:800;color:var(--secondary)">⭐ ${s.total_points}</div>
+            </div>`).join('') || '<p style="color:var(--text-muted);font-size:14px">No students yet</p>'}
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">👤 All Students</div>
+        <input type="text" id="searchInput" class="form-control" style="width:220px"
+          placeholder="Search students…" oninput="filterUsers(this.value)"/>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="users-table" id="usersTable">
+          <thead>
+            <tr>
+              <th>Name</th><th>Email</th><th>City</th><th>Points</th><th>Modules</th><th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody">
+            ${users.map(u => `
+              <tr data-name="${u.name.toLowerCase()}" data-email="${u.email.toLowerCase()}">
+                <td style="font-weight:600">${u.name}</td>
+                <td style="color:var(--text-muted)">${u.email}</td>
+                <td>📍 ${u.city}</td>
+                <td style="color:var(--secondary);font-weight:600">⭐ ${u.points}</td>
+                <td>${u.modules_done}/4</td>
+                <td style="color:var(--text-muted);font-size:12px">${new Date(u.created_at).toLocaleDateString('en-IN')}</td>
+              </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">No students registered yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Drill Performance Chart
+  const drillCtx = document.getElementById('drillChart').getContext('2d');
+  drillChartInst = new Chart(drillCtx, {
+    type: 'doughnut',
+    data: {
+      labels: stats.drill_by_type.map(d => d.disaster_type.charAt(0).toUpperCase() + d.disaster_type.slice(1)),
+      datasets: [{
+        data: stats.drill_by_type.map(d => Math.round(d.avg_pct)),
+        backgroundColor: ['rgba(245,158,11,.8)', 'rgba(239,68,68,.8)', 'rgba(59,130,246,.8)', 'rgba(139,92,246,.8)'],
+        borderColor: 'var(--bg-card)',
+        borderWidth: 3,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16, font: { size: 13 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}% avg` } }
+      }
+    }
+  });
+
+  // Signup Chart
+  const signupCtx = document.getElementById('signupChart').getContext('2d');
+  const signupDays = stats.daily_signups.reverse();
+  signupChartInst = new Chart(signupCtx, {
+    type: 'line',
+    data: {
+      labels: signupDays.map(d => d.day),
+      datasets: [{
+        label: 'New Students',
+        data: signupDays.map(d => d.cnt),
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#6366f1',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, color:'#64748b' }, grid: { color:'rgba(255,255,255,.06)' } },
+        x: { ticks: { color:'#94a3b8' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+async function sendAlert() {
+  const msg      = document.getElementById('alertMsg').value.trim();
+  const city     = document.getElementById('alertCity').value;
+  const severity = document.getElementById('alertSeverity').value;
+  if (!msg) { showToast('Please enter a message', 'warning'); return; }
+
+  const r = await fetch('/api/alert/send', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({message: msg, city, severity})
+  });
+  const d = await r.json();
+  if (r.ok) {
+    showToast('Alert sent successfully!', 'success');
+    document.getElementById('alertMsg').value = '';
+    document.getElementById('alertFeedback').innerHTML = `
+      <div style="padding:10px 14px;background:rgba(34,197,94,.1);border:1px solid #22c55e;border-radius:8px;color:#4ade80;font-size:13px">
+        ✅ Alert sent to <strong>${city}</strong> students successfully!
+      </div>`;
+    setTimeout(() => { document.getElementById('alertFeedback').innerHTML = ''; }, 5000);
+  } else {
+    showToast(d.error || 'Failed to send alert', 'error');
+  }
+}
+
+function filterUsers(q) {
+  const rows = document.querySelectorAll('#usersBody tr[data-name]');
+  const lq = q.toLowerCase();
+  rows.forEach(r => {
+    const match = r.dataset.name.includes(lq) || r.dataset.email.includes(lq);
+    r.style.display = match ? '' : 'none';
+  });
+}
+
+loadAdmin();
+</script>
+{% endblock %}

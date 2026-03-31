@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Learning Modules{% endblock %}
+{% block page_title %}Learning Modules{% endblock %}
+
+{% block content %}
+<p style="color:var(--text-secondary);margin-bottom:24px">Master disaster preparedness through interactive modules. Complete each one to earn points and unlock badges.</p>
+
+<div id="modulesGrid" class="grid-auto">
+  <div class="loading"><div class="spinner"></div> Loading modules…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadModules() {
+  const r = await fetch('/api/modules');
+  const mods = await r.json();
+
+  const typeColors = {
+    earthquake: 'linear-gradient(135deg,rgba(245,158,11,.15),rgba(239,68,68,.1))',
+    fire:       'linear-gradient(135deg,rgba(239,68,68,.15),rgba(249,115,22,.1))',
+    flood:      'linear-gradient(135deg,rgba(59,130,246,.15),rgba(99,102,241,.1))',
+    cyclone:    'linear-gradient(135deg,rgba(139,92,246,.15),rgba(59,130,246,.1))',
+  };
+
+  document.getElementById('modulesGrid').innerHTML = mods.map(m => `
+    <div class="module-card ${m.completed ? 'completed' : ''}"
+         style="background:${typeColors[m.disaster_type]||'var(--bg-card)'}"
+         onclick="window.location.href='/modules/${m.id}'">
+      <span class="module-icon">${m.icon}</span>
+      <div class="module-title">${m.title}</div>
+      <div class="module-desc">${m.description}</div>
+      <div class="module-footer">
+        <span class="module-points">⭐ ${m.points} pts</span>
+        <span class="module-status ${m.completed ? 'done' : 'pending'}">
+          ${m.completed ? '✓ Completed' : '→ Start'}
+        </span>
+      </div>
+    </div>
+  `).join('');
+}
+loadModules();
+</script>
+{% endblock %}

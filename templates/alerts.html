@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Emergency Alerts{% endblock %}
+{% block page_title %}Emergency Alerts{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+  <p style="color:var(--text-secondary)">Real-time emergency alerts for your city and region.</p>
+  <select id="filterSeverity" class="form-control" style="width:180px" onchange="filterAlerts()">
+    <option value="all">All Alerts</option>
+    <option value="danger">🚨 Danger</option>
+    <option value="warning">⚠️ Warning</option>
+    <option value="info">ℹ️ Info</option>
+  </select>
+</div>
+
+<div id="alertsList">
+  <div class="loading"><div class="spinner"></div> Loading alerts…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allAlerts = [];
+
+async function loadAlerts() {
+  const r = await fetch('/api/alert/get');
+  allAlerts = await r.json();
+  renderAlerts(allAlerts);
+}
+
+function filterAlerts() {
+  const f = document.getElementById('filterSeverity').value;
+  const filtered = f === 'all' ? allAlerts : allAlerts.filter(a => a.severity === f);
+  renderAlerts(filtered);
+}
+
+function renderAlerts(list) {
+  if (!list.length) {
+    document.getElementById('alertsList').innerHTML = `
+      <div class="empty-state">
+        <span class="empty-icon">✅</span>
+        <div class="empty-title">No alerts for your area</div>
+        <p style="font-size:14px;margin-top:8px">You're all clear! Stay prepared.</p>
+      </div>`;
+    return;
+  }
+
+  const icons = {danger:'🚨', warning:'⚠️', info:'ℹ️'};
+  const labels = {danger:'Danger', warning:'Warning', info:'Info'};
+
+  document.getElementById('alertsList').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${list.map(a => `
+        <div class="alert-banner ${a.severity==='danger'?'danger':a.severity==='warning'?'warning':'info'}" style="border-radius:12px;padding:18px 22px">
+          <span class="alert-icon" style="font-size:28px">${icons[a.severity]||'ℹ️'}</span>
+          <div class="alert-content" style="flex:1">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div class="alert-title" style="font-size:15px">
+                ${labels[a.severity]||'Alert'} – ${a.city === 'All' ? 'All Cities' : a.city}
+              </div>
+              <span style="font-size:11px;padding:3px 10px;border-radius:10px;font-weight:700;
+                background:${a.severity==='danger'?'rgba(239,68,68,.2)':a.severity==='warning'?'rgba(245,158,11,.2)':'rgba(59,130,246,.2)'};
+                color:${a.severity==='danger'?'#f87171':a.severity==='warning'?'#fcd34d':'#93c5fd'}">
+                ${a.severity?.toUpperCase()||'INFO'}
+              </span>
+            </div>
+            <div class="alert-msg" style="font-size:15px;margin-top:6px;line-height:1.5">${a.message}</div>
+            <div class="alert-time" style="margin-top:8px">
+              📅 ${new Date(a.created_at).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'})}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+loadAlerts();
+// Auto-refresh every 30s
+setInterval(loadAlerts, 30000);
+</script>
+{% endblock %}
